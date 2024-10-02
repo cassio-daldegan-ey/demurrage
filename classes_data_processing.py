@@ -13,6 +13,31 @@ import pandas as pd
 from prophet import Prophet
 
 
+def CorrecaoNomes(base: pd.DataFrame, string: str):
+    """O objetivo dessa funcao é retirar alguns strings dos nosmes das variáveis
+    para padronizar. Caso contrário seriam nomes diferentes de variáveis para
+    piers distintos.
+    
+    Args:
+
+        base: Dataframe com as variáveis cujos nomes iremos mudar.
+        
+        string: string com o termo que vamos retirar do nome da variavel.
+
+    Returns:
+
+        indices: Nova base com os nomes modificados.
+        """
+    indices = base[[x for x in list(base.columns) if string in x]]
+    indices.columns = list(
+        map(
+            lambda x: x.replace(string, ""),
+            [x for x in list(base.columns) if string in x],
+        )
+    )
+    return indices
+
+
 def TotalEmbarcado(
     indices1: pd.DataFrame,
     indices2: pd.DataFrame,
@@ -801,7 +826,8 @@ class Datas_Inicio_Fim_Teste:
             calendar.monthrange(
                 pd.to_datetime(min(lista_datas)).year,
                 pd.to_datetime(min(lista_datas)).month,
-            )[1] - pd.to_datetime(min(lista_datas)).day
+            )[1]
+            - pd.to_datetime(min(lista_datas)).day
             < 7
         ):
             DATA_FIM_TESTE = pd.to_datetime(min(lista_datas))
@@ -5731,5 +5757,45 @@ class NovosNomes:
             },
             inplace=True,
         )
+
+        # Por fim, vamos tratar os missings de algumas variaveis
+
+        for var in [
+            "Lag 1 mes numero de navios na fila",
+            "Lag 2 meses numero de navios na fila",
+            "Lag 3 meses numero de navios na fila",
+            "Lag 1 mes Capacidade",
+            "Lag 2 meses Capacidade",
+            "Lag 3 meses Capacidade",
+            "Lag 1 OEE",
+            "Lag 1 DISPONIBILIDADE",
+            "DISPONIBILIDADE",
+            "UTILIZACAO",
+            "OEE",
+            "CAPACIDADE",
+            "TAXA_EFETIVA",
+        ]:
+            self.base_diaria[var] = self.base_diaria.groupby(["Port", "Pier"])[
+                var
+            ].ffill()
+
+        for var in [
+            "Lag 1 mes numero de navios na fila",
+            "Lag 2 meses numero de navios na fila",
+            "Lag 3 meses numero de navios na fila",
+            "Lag 1 mes Capacidade",
+            "Lag 2 meses Capacidade",
+            "Lag 3 meses Capacidade",
+            "Lag 1 OEE",
+            "Lag 1 DISPONIBILIDADE",
+            "DISPONIBILIDADE",
+            "UTILIZACAO",
+            "OEE",
+            "CAPACIDADE",
+            "TAXA_EFETIVA",
+        ]:
+            self.base_semanal[var] = self.base_semanal.groupby(["Port", "Pier"])[
+                var
+            ].ffill()
 
         return [self.base_diaria, self.base_semanal]
