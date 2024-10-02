@@ -12,11 +12,9 @@ from sklearn.model_selection import RandomizedSearchCV
 from sklearn.metrics import mean_absolute_percentage_error
 from sklearn.model_selection import GridSearchCV, ParameterGrid
 
+
 def tuning_prophet(
-    data_base: pd.DataFrame,
-    variable: str,
-    data_inicio_teste: str,
-    data_fim_teste: str,
+    data_base: pd.DataFrame, variable: str, data_inicio_teste: str, data_fim_teste: str,
 ):
     """Nessa funcao fazemos o tunning do modelo prophet. Vamos testar
     valores dentre intervalos distintos para cada hiperparametro e
@@ -233,13 +231,7 @@ class TratamentoDados:
 
         pier = "Total"
 
-        var_x = list(
-            set(
-                variaveis_demurrage
-                + variaveis_estadia
-                + variaveis_volume
-            )
-        )
+        var_x = list(set(variaveis_demurrage + variaveis_estadia + variaveis_volume))
 
         var_controle = [
             "Ano",
@@ -346,8 +338,8 @@ class TuningProphet:
         melhores estimacoes do prophet.
 
         tuning_: Parametro que determina se sera feito o tuning ou se vamos utilizar
-        valores fixos para os hiperparametros do prophet. Para tuning_ = 1 fazemos
-        o tuning, para tuning_ = 0 utilizamos valores padrao.
+        valores fixos para os hiperparametros do prophet. Para tuning_ = True fazemos
+        o tuning, para tuning_ = False utilizamos valores padrao.
 
     Returns:
 
@@ -361,6 +353,10 @@ class TuningProphet:
 
         pred_v: Dataframe com a previsao da variável de volume embarcado
         utilizando o prophet.
+        
+        tuning_: Parametro igual a False quando utilizamos os valores de 
+        hiperparametros salvos na última estimacao e igual a True quando
+        optamos por fazer o tuning dos modelos.
 
     """
 
@@ -370,7 +366,7 @@ class TuningProphet:
         data_inicio_teste: str,
         data_fim_teste: str,
         hiperparametros_prophet: dict,
-        tuning_: int,
+        tuning_: bool,
     ):
         self.df_data = df_data
         self.data_inicio_teste = data_inicio_teste
@@ -417,7 +413,7 @@ class TuningProphet:
             prophet_v[["y", "ds"]],
         )
 
-        if self.tuning_ == 1:
+        if self.tuning_ == True:
 
             # Definida a funcao que faz o tunning, vamos aplicar o tunning a
             # estimacao de cada uma das variaveis dependentes.
@@ -443,20 +439,44 @@ class TuningProphet:
 
             # Vamos salvar os hiperparametros.
 
-            self.hiperparametros_prophet["Multa_Demurrage"]["changepoint_prior_scale"] = parameters_demurrage["changepoint_prior_scale"]
-            self.hiperparametros_prophet["Multa_Demurrage"]["holidays_prior_scale"] = parameters_demurrage["holidays_prior_scale"]
-            self.hiperparametros_prophet["Multa_Demurrage"]["n_changepoints"] = parameters_demurrage["n_changepoints"]
-            self.hiperparametros_prophet["Multa_Demurrage"]["seasonality_mode"] = parameters_demurrage["seasonality_mode"]
+            self.hiperparametros_prophet["Multa_Demurrage"][
+                "changepoint_prior_scale"
+            ] = parameters_demurrage["changepoint_prior_scale"]
+            self.hiperparametros_prophet["Multa_Demurrage"][
+                "holidays_prior_scale"
+            ] = parameters_demurrage["holidays_prior_scale"]
+            self.hiperparametros_prophet["Multa_Demurrage"][
+                "n_changepoints"
+            ] = parameters_demurrage["n_changepoints"]
+            self.hiperparametros_prophet["Multa_Demurrage"][
+                "seasonality_mode"
+            ] = parameters_demurrage["seasonality_mode"]
 
-            self.hiperparametros_prophet["Estadia_media_navios_hs"]["changepoint_prior_scale"] = parameters_estadia["changepoint_prior_scale"]
-            self.hiperparametros_prophet["Estadia_media_navios_hs"]["holidays_prior_scale"] = parameters_estadia["holidays_prior_scale"]
-            self.hiperparametros_prophet["Estadia_media_navios_hs"]["n_changepoints"] = parameters_estadia["n_changepoints"]
-            self.hiperparametros_prophet["Estadia_media_navios_hs"]["seasonality_mode"] = parameters_estadia["seasonality_mode"]
+            self.hiperparametros_prophet["Estadia_media_navios_hs"][
+                "changepoint_prior_scale"
+            ] = parameters_estadia["changepoint_prior_scale"]
+            self.hiperparametros_prophet["Estadia_media_navios_hs"][
+                "holidays_prior_scale"
+            ] = parameters_estadia["holidays_prior_scale"]
+            self.hiperparametros_prophet["Estadia_media_navios_hs"][
+                "n_changepoints"
+            ] = parameters_estadia["n_changepoints"]
+            self.hiperparametros_prophet["Estadia_media_navios_hs"][
+                "seasonality_mode"
+            ] = parameters_estadia["seasonality_mode"]
 
-            self.hiperparametros_prophet["Volume_Embarcado"]["changepoint_prior_scale"] = parameters_volume["changepoint_prior_scale"]
-            self.hiperparametros_prophet["Volume_Embarcado"]["holidays_prior_scale"] = parameters_volume["holidays_prior_scale"]
-            self.hiperparametros_prophet["Volume_Embarcado"]["n_changepoints"] = parameters_volume["n_changepoints"]
-            self.hiperparametros_prophet["Volume_Embarcado"]["seasonality_mode"] = parameters_volume["seasonality_mode"]
+            self.hiperparametros_prophet["Volume_Embarcado"][
+                "changepoint_prior_scale"
+            ] = parameters_volume["changepoint_prior_scale"]
+            self.hiperparametros_prophet["Volume_Embarcado"][
+                "holidays_prior_scale"
+            ] = parameters_volume["holidays_prior_scale"]
+            self.hiperparametros_prophet["Volume_Embarcado"][
+                "n_changepoints"
+            ] = parameters_volume["n_changepoints"]
+            self.hiperparametros_prophet["Volume_Embarcado"][
+                "seasonality_mode"
+            ] = parameters_volume["seasonality_mode"]
 
             # Modelo prophet para a variavel custo de demurrage.
 
@@ -485,27 +505,51 @@ class TuningProphet:
                 seasonality_mode=parameters_volume["seasonality_mode"],
             )
 
-        elif self.tuning_ == 0:
+        elif self.tuning_ == False:
 
             m_d = Prophet(
-                changepoint_prior_scale=self.hiperparametros_prophet["Multa_Demurrage"]["changepoint_prior_scale"],
-                holidays_prior_scale=self.hiperparametros_prophet["Multa_Demurrage"]["holidays_prior_scale"],
-                n_changepoints=self.hiperparametros_prophet["Multa_Demurrage"]["n_changepoints"],
-                seasonality_mode=self.hiperparametros_prophet["Multa_Demurrage"]["seasonality_mode"],
+                changepoint_prior_scale=self.hiperparametros_prophet["Multa_Demurrage"][
+                    "changepoint_prior_scale"
+                ],
+                holidays_prior_scale=self.hiperparametros_prophet["Multa_Demurrage"][
+                    "holidays_prior_scale"
+                ],
+                n_changepoints=self.hiperparametros_prophet["Multa_Demurrage"][
+                    "n_changepoints"
+                ],
+                seasonality_mode=self.hiperparametros_prophet["Multa_Demurrage"][
+                    "seasonality_mode"
+                ],
             )
 
             m_t = Prophet(
-                changepoint_prior_scale=self.hiperparametros_prophet["Estadia_media_navios_hs"]["changepoint_prior_scale"],
-                holidays_prior_scale=self.hiperparametros_prophet["Estadia_media_navios_hs"]["holidays_prior_scale"],
-                n_changepoints=self.hiperparametros_prophet["Estadia_media_navios_hs"]["n_changepoints"],
-                seasonality_mode=self.hiperparametros_prophet["Estadia_media_navios_hs"]["seasonality_mode"],
+                changepoint_prior_scale=self.hiperparametros_prophet[
+                    "Estadia_media_navios_hs"
+                ]["changepoint_prior_scale"],
+                holidays_prior_scale=self.hiperparametros_prophet[
+                    "Estadia_media_navios_hs"
+                ]["holidays_prior_scale"],
+                n_changepoints=self.hiperparametros_prophet["Estadia_media_navios_hs"][
+                    "n_changepoints"
+                ],
+                seasonality_mode=self.hiperparametros_prophet[
+                    "Estadia_media_navios_hs"
+                ]["seasonality_mode"],
             )
 
             m_v = Prophet(
-                changepoint_prior_scale=self.hiperparametros_prophet["Volume_Embarcado"]["changepoint_prior_scale"],
-                holidays_prior_scale=self.hiperparametros_prophet["Volume_Embarcado"]["holidays_prior_scale"],
-                n_changepoints=self.hiperparametros_prophet["Volume_Embarcado"]["n_changepoints"],
-                seasonality_mode=self.hiperparametros_prophet["Volume_Embarcado"]["seasonality_mode"],
+                changepoint_prior_scale=self.hiperparametros_prophet[
+                    "Volume_Embarcado"
+                ]["changepoint_prior_scale"],
+                holidays_prior_scale=self.hiperparametros_prophet["Volume_Embarcado"][
+                    "holidays_prior_scale"
+                ],
+                n_changepoints=self.hiperparametros_prophet["Volume_Embarcado"][
+                    "n_changepoints"
+                ],
+                seasonality_mode=self.hiperparametros_prophet["Volume_Embarcado"][
+                    "seasonality_mode"
+                ],
             )
 
         # Abaixo, vazemos o fit do modelo para cada uma das variaveis
@@ -519,29 +563,17 @@ class TuningProphet:
         # dessas variaveis para o periodo futuro.
 
         future_d = m_d.make_future_dataframe(
-            periods=len(
-                self.df_data[
-                    (self.df_data.index >= self.data_inicio_teste)
-                    ]
-            ),
+            periods=len(self.df_data[(self.df_data.index >= self.data_inicio_teste)]),
             freq="W",
         )
 
         future_t = m_t.make_future_dataframe(
-            periods=len(
-                self.df_data[
-                    (self.df_data.index >= self.data_inicio_teste)
-                ]
-            ),
+            periods=len(self.df_data[(self.df_data.index >= self.data_inicio_teste)]),
             freq="W",
         )
 
         future_v = m_v.make_future_dataframe(
-            periods=len(
-                self.df_data[
-                    (self.df_data.index >= self.data_inicio_teste)
-                ]
-            ),
+            periods=len(self.df_data[(self.df_data.index >= self.data_inicio_teste)]),
             freq="W",
         )
 
@@ -589,7 +621,7 @@ class TuningProphet:
         pred_t.reset_index(inplace=True)
         pred_v.reset_index(inplace=True)
 
-        return [self.df_data, pred_d, pred_t, pred_v,self.hiperparametros_prophet]
+        return [self.df_data, pred_d, pred_t, pred_v, self.hiperparametros_prophet]
 
 
 class DataSplit:
@@ -655,10 +687,7 @@ class DataSplit:
     """
 
     def __init__(
-        self,
-        df_data: pd.DataFrame,
-        data_inicio_teste: str,
-        data_fim_teste: str,
+        self, df_data: pd.DataFrame, data_inicio_teste: str, data_fim_teste: str,
     ):
         self.df_data = df_data
         self.data_inicio_teste = data_inicio_teste
@@ -881,7 +910,7 @@ class Modelos:
         dos modelos de random forest.
 
         tuning_: Parametro que determina se faremos o tuning para os modelos de
-        random forest ou nao. Se tuning_ = 1, fazemos tuning. Se tuning_ = 0,
+        random forest ou nao. Se tuning_ = True, fazemos tuning. Se tuning_ = False,
         executamos com os valores padrao.
 
         hp_rf_prev: Hiperparametros de random forest salvos na última estimacao
@@ -912,7 +941,7 @@ class Modelos:
         data_inicio_teste: str,
         w_d: str,
         save_rf: str,
-        tuning_: int,
+        tuning_: bool,
         hp_rf_prev: dict,
     ):
         self.df_data = df_data
@@ -942,13 +971,13 @@ class Modelos:
         for var in (
             ("Multa_Demurrage", self.var_demurrage, "Medias", self.pred_d),
             ("Estadia_media_navios_hs", self.var_estadia, "Medias", self.pred_t),
-            ("Volume_Embarcado", self.var_volume, "Medias", self.pred_v)
+            ("Volume_Embarcado", self.var_volume, "Medias", self.pred_v),
         ):
 
             var_y = var[0]
             var_x = var[1]
 
-            if self.tuning_ == 1:
+            if self.tuning_ == True:
 
                 # Abaixo, definimos as listas de valores a serem testados para
                 # cada um dos hiperparametros do random forest a serem utilizados
@@ -1054,16 +1083,28 @@ class Modelos:
                     random_state=42,
                 )
 
-                self.hp_rf_prev[var_y]["n_estimators"] = grid_search.best_params_["n_estimators"]
-                self.hp_rf_prev[var_y]["min_samples_split"] = grid_search.best_params_["min_samples_split"]
-                self.hp_rf_prev[var_y]["min_samples_leaf"] = grid_search.best_params_["min_samples_leaf"]
-                self.hp_rf_prev[var_y]["max_features"] = grid_search.best_params_["max_features"]
-                self.hp_rf_prev[var_y]["max_depth"] = grid_search.best_params_["max_depth"]
-                self.hp_rf_prev[var_y]["bootstrap"] = grid_search.best_params_["bootstrap"]
-                self.hp_rf_prev[var_y]['random_state'] = 42
+                self.hp_rf_prev[var_y]["n_estimators"] = grid_search.best_params_[
+                    "n_estimators"
+                ]
+                self.hp_rf_prev[var_y]["min_samples_split"] = grid_search.best_params_[
+                    "min_samples_split"
+                ]
+                self.hp_rf_prev[var_y]["min_samples_leaf"] = grid_search.best_params_[
+                    "min_samples_leaf"
+                ]
+                self.hp_rf_prev[var_y]["max_features"] = grid_search.best_params_[
+                    "max_features"
+                ]
+                self.hp_rf_prev[var_y]["max_depth"] = grid_search.best_params_[
+                    "max_depth"
+                ]
+                self.hp_rf_prev[var_y]["bootstrap"] = grid_search.best_params_[
+                    "bootstrap"
+                ]
+                self.hp_rf_prev[var_y]["random_state"] = 42
 
-            elif self.tuning_ == 0:
-                if var[0] == 'Multa_Demurrage' and self.porto == 'Guaiba e Sepetiba':
+            elif self.tuning_ == False:
+                if var[0] == "Multa_Demurrage" and self.porto == "Guaiba e Sepetiba":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1071,9 +1112,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Multa_Demurrage' and self.porto == 'Ponta Madeira':
+                elif var[0] == "Multa_Demurrage" and self.porto == "Ponta Madeira":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1081,9 +1122,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Multa_Demurrage' and self.porto == 'Tubarao':
+                elif var[0] == "Multa_Demurrage" and self.porto == "Tubarao":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1091,9 +1132,12 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Estadia_media_navios_hs' and self.porto == 'Guaiba e Sepetiba':
+                elif (
+                    var[0] == "Estadia_media_navios_hs"
+                    and self.porto == "Guaiba e Sepetiba"
+                ):
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1101,9 +1145,12 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Estadia_media_navios_hs' and self.porto == 'Ponta Madeira':
+                elif (
+                    var[0] == "Estadia_media_navios_hs"
+                    and self.porto == "Ponta Madeira"
+                ):
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1111,9 +1158,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Estadia_media_navios_hs' and self.porto == 'Tubarao':
+                elif var[0] == "Estadia_media_navios_hs" and self.porto == "Tubarao":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1121,9 +1168,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Volume_Embarcado' and self.porto == 'Guaiba e Sepetiba':
+                elif var[0] == "Volume_Embarcado" and self.porto == "Guaiba e Sepetiba":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1131,9 +1178,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Volume_Embarcado' and self.porto == 'Ponta Madeira':
+                elif var[0] == "Volume_Embarcado" and self.porto == "Ponta Madeira":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1141,9 +1188,9 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
-                elif var[0] == 'Volume_Embarcado' and self.porto == 'Tubarao':
+                elif var[0] == "Volume_Embarcado" and self.porto == "Tubarao":
                     r_f = RandomForestRegressor(
                         n_estimators=self.hp_rf_prev[var_y]["n_estimators"],
                         min_samples_split=self.hp_rf_prev[var_y]["min_samples_split"],
@@ -1151,7 +1198,7 @@ class Modelos:
                         max_features=self.hp_rf_prev[var_y]["max_features"],
                         max_depth=self.hp_rf_prev[var_y]["max_depth"],
                         bootstrap=self.hp_rf_prev[var_y]["bootstrap"],
-                        random_state=self.hp_rf_prev[var_y]['random_state'],
+                        random_state=self.hp_rf_prev[var_y]["random_state"],
                     )
 
             # Treinamos o modelo
@@ -1203,4 +1250,4 @@ class Modelos:
                 + ".xlsx"
             )
 
-        return [resultado,self.hp_rf_prev]
+        return [resultado, self.hp_rf_prev]
