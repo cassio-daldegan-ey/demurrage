@@ -11,6 +11,7 @@ from dateutil.relativedelta import relativedelta
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import GridSearchCV, RandomizedSearchCV
 
+
 def shap_values_fun(mdl, train_x):
     """Essa funcao faz o cálculo dos valores de shap.
     """
@@ -19,6 +20,20 @@ def shap_values_fun(mdl, train_x):
     shap_values = explainer.shap_values(train_x)
     expected_value = explainer.expected_value
     return shap_values, expected_value
+
+
+def tratamento_semanal(base_semanal, data_final_real):
+    """Essa funcao faz um breve tratamento e salva a base semanal para utilizar
+    no power bi.
+    """
+    semanal_prev = base_semanal.reset_index()
+    semanal_prev["Real/Previsto"] = np.where(
+        semanal_prev["Day"] > pd.to_datetime(data_final_real), "Previsto", "Real"
+    )
+    semanal_sc = semanal_prev.copy()
+    semanal_sc["Período"] = "Seco e Chuvoso"
+    semanal_prev = pd.concat([semanal_prev, semanal_sc], axis=0, ignore_index=True)
+    return semanal_prev
 
 
 class Clusterizacao:
@@ -55,7 +70,7 @@ class Clusterizacao:
 
         df_volume_tb: Previsao da variável volume para o porto de Tubarao.
 
-        tuning_: Valor 0 ou 1, sendo 1 para executar o tuning dos modelos random
+        tuning_: Valor False ou True, sendo 1 para executar o tuning dos modelos random
         forest e 0 caso nao fizermos o tuning, importando os hiperparametros do
         último tuning.
 
@@ -70,6 +85,10 @@ class Clusterizacao:
 
         historico: Histórico de previsoes das variáveis Custo de Demurrage, Tempo
         de Estadia e Volume para todos os portos.
+        
+        path_historico: Caminho onde salvamos a base histórico.
+        
+        path_powerbi: Caminho onde salvamos as bases para o power bi.
 
     Returns:
 
@@ -93,28 +112,29 @@ class Clusterizacao:
         hp_rf_cluster: Valores de hiperparametros correspondentes as previsoes
         de demurrage, estadia e volume com a melhor acurácia.
 
-        historico: Histórico de previsoes de Demurrage, Estadia e Volume.
-
     """
+
     def __init__(
         self,
-        base_semanal,
-        base_diaria,
-        df_demurrage_pm,
-        df_estadia_pm,
-        df_volume_pm,
-        df_demurrage_gs,
-        df_estadia_gs,
-        df_volume_gs,
-        df_demurrage_tb,
-        df_estadia_tb,
-        df_volume_tb,
-        tuning_,
-        DATA_FIM_TESTE,
-        DATA_INICIO_TESTE,
-        path,
-        hp_rf_cluster,
-        historico,
+        base_semanal: pd.DataFrame,
+        base_diaria: pd.DataFrame,
+        df_demurrage_pm: pd.DataFrame,
+        df_estadia_pm: pd.DataFrame,
+        df_volume_pm: pd.DataFrame,
+        df_demurrage_gs: pd.DataFrame,
+        df_estadia_gs: pd.DataFrame,
+        df_volume_gs: pd.DataFrame,
+        df_demurrage_tb: pd.DataFrame,
+        df_estadia_tb: pd.DataFrame,
+        df_volume_tb: pd.DataFrame,
+        tuning_: bool,
+        DATA_FIM_TESTE: str,
+        DATA_INICIO_TESTE: str,
+        path: str,
+        hp_rf_cluster: dict,
+        historico: pd.DataFrame,
+        path_historico: str,
+        path_powerbi: str,
     ):
         self.base_semanal = base_semanal
         self.base_diaria = base_diaria
@@ -133,10 +153,12 @@ class Clusterizacao:
         self.path = path
         self.hp_rf_cluster = hp_rf_cluster
         self.historico = historico
+        self.path_historico = path_historico
+        self.path_powerbi = path_powerbi
 
     def resultado(self):
 
-        #remocao_dados_reais_extras = "2023-10-01"
+        # remocao_dados_reais_extras = "2023-10-01"
         del self.base_semanal["Período"]
 
         # bases
@@ -202,7 +224,7 @@ class Clusterizacao:
         df.columns.values[3] = "Estadia_media_navios_hs"
         df.columns.values[5] = "Volume_Embarcado"
 
-        #df_prev = df.loc[:, ~df.columns.duplicated()]
+        # df_prev = df.loc[:, ~df.columns.duplicated()]
         df = df.loc[:, ~df.columns.duplicated()]
 
         df_semanal = self.base_semanal
@@ -406,12 +428,12 @@ class Clusterizacao:
             df_final1["Estadia_media_navios_hs"] / df_final1["pesos"]
         )
 
-        #df_final1 = df_final1.drop(
+        # df_final1 = df_final1.drop(
         #    df_final1[
         #        (df_final1["mes_ano"] == remocao_dados_reais_extras)
         #        & (df_final1["Variavel"] == "Real")
         #    ].index
-        #)
+        # )
 
         df_periodo_mensal = df_final1.copy()
 
@@ -1052,11 +1074,11 @@ class Clusterizacao:
         output: bases de shap values por porto e variável resposta
 
         """
-        if not os.path.exists(self.path + "/shap + clusters " + str(date.today())):
-            os.makedirs(self.path + "/shap + clusters " + str(date.today()))
-        files = os.listdir(self.path + "/shap + clusters " + str(date.today()) + "/")
+        if not os.path.exists(self.path + "/outputs/power bi/shap + clusters"):
+            os.makedirs(self.path + "/outputs/power bi/shap + clusters")
+        files = os.listdir(self.path + "/outputs/power bi/shap + clusters" + "/")
         for file in files:
-            os.remove(self.path + "/shap + clusters " + str(date.today()) + "/" + file)
+            os.remove(self.path + "/outputs/power bi/shap + clusters" + "/" + file)
 
         for i in ["Ponta Madeira", "Guaiba e Sepetiba", "Tubarao"]:
             for j in ["Multa_Demurrage", "Volume_Embarcado"]:
@@ -1117,7 +1139,7 @@ class Clusterizacao:
 
                     df_train.columns
 
-                    if self.tuning_ == 1:
+                    if self.tuning_ == True:
 
                         n_estimators = [
                             int(x)
@@ -1263,7 +1285,7 @@ class Clusterizacao:
                         ] = grid_search.best_params_["bootstrap"]
                         self.hp_rf_cluster[i][j][l]["n_estimators"] = 42
 
-                    elif self.tuning_ == 0:
+                    elif self.tuning_ == False:
 
                         if (
                             i == "Ponta Madeira"
@@ -1821,8 +1843,7 @@ class Clusterizacao:
                     ).reset_index()
                     X.to_excel(
                         self.path
-                        + "/shap + clusters "
-                        + str(date.today())
+                        + "/outputs/power bi/shap + clusters"
                         + "/base_shap_"
                         + dep_var1
                         + "_"
@@ -1893,7 +1914,7 @@ class Clusterizacao:
                         )
                     ]
 
-                    if self.tuning_ == 1:
+                    if self.tuning_ == True:
 
                         n_estimators = [
                             int(x)
@@ -2039,7 +2060,7 @@ class Clusterizacao:
                         ] = grid_search.best_params_["bootstrap"]
                         self.hp_rf_cluster[a][b][c]["n_estimators"] = 42
 
-                    elif self.tuning_ == 0:
+                    elif self.tuning_ == False:
 
                         if (
                             a == "Ponta Madeira"
@@ -2378,8 +2399,7 @@ class Clusterizacao:
                     ).reset_index()
                     Y.to_excel(
                         self.path
-                        + "/shap + clusters "
-                        + str(date.today())
+                        + "/outputs/power bi/shap + clusters"
                         + "/base_shap_"
                         + dep_var1
                         + "_"
@@ -2395,7 +2415,7 @@ class Clusterizacao:
 
         """
 
-        padrao_arquivo = self.path + "/shap + clusters " + str(date.today()) + "/*.xlsx"
+        padrao_arquivo = self.path + "/outputs/power bi/shap + clusters" + "/*.xlsx"
 
         dataframes = []
 
@@ -2460,7 +2480,7 @@ class Clusterizacao:
 
         """
 
-        padrao_arquivo = self.path + "/shap + clusters " + str(date.today()) + "/*.xlsx"
+        padrao_arquivo = self.path + "/outputs/power bi/shap + clusters" + "/*.xlsx"
 
         dataframes1 = []
 
@@ -2688,17 +2708,13 @@ class Clusterizacao:
             (df_x_neg["Análise"] == "DISPONIBILIDADE")
             & (df_x_neg["Variavel"] == "Volume"),
             "X",
-        ] = (
-            df_x_neg_disp * 0.85
-        )
+        ] = (df_x_neg_disp * 0.85)
 
         df_x_posi.loc[
             (df_x_posi["Análise"] == "DISPONIBILIDADE")
             & ~(df_x_neg["Variavel"] == "Volume"),
             "X",
-        ] = (
-            df_x_posi_disp * 0.85
-        )
+        ] = (df_x_posi_disp * 0.85)
 
         df_x_posi1 = pd.melt(
             df_concatenado_posi,
@@ -2769,32 +2785,28 @@ class Clusterizacao:
 
         base9 = df_final_ok
 
-        if not os.path.exists(self.path + "/shap + clusters"):
-            os.makedirs(self.path + "/shap + clusters")
+        # Vamos salvar o histórico de previsoes
 
-        files = os.listdir(self.path + "/shap + clusters" + "/")
-        for file in files:
-            os.remove(self.path + "/shap + clusters" + "/" + file)
+        self.historico.to_excel(self.path + self.path_historico)
 
-        files = os.listdir(self.path + "/shap + clusters " + str(date.today()))
+        # Vamos salvar as bases utilizadas para alimentar o arquivo do powerbi
 
-        for fname in files:
-            shutil.copy2(
-                os.path.join(
-                    self.path + "/shap + clusters " + str(date.today()), fname
-                ),
-                self.path + "/shap + clusters",
-            )
-
-        if not os.path.exists(self.path + "/Output"):
-            os.makedirs(self.path + "/Output")
-
-        files = os.listdir(self.path + "/Output" + "/")
-        for file in files:
-            os.remove(self.path + "/Output" + "/" + file)
-
-        if not os.path.exists(self.path + "/Output " + str(date.today())):
-            os.makedirs(self.path + "/Output " + str(date.today()))
+        base1.to_excel(
+            self.path + self.path_powerbi + "Output" + "/base_previsao_mensal.xlsx"
+        )
+        base2.to_excel(self.path + self.path_powerbi + "/Output" + "/base_diaria.xlsx")
+        base3.to_excel(self.path + self.path_powerbi + "/Output" + "/df_variaveis.xlsx")
+        base4.to_excel(
+            self.path
+            + self.path_powerbi
+            + "/Output"
+            + "/base_previsao_mensal_min_max.xlsx"
+        )
+        base5.to_excel(
+            self.path + self.path_powerbi + "/Output" + "/correlacao_bi.xlsx"
+        )
+        base8.to_excel(self.path + self.path_powerbi + "/Output" + "/shap_values.xlsx")
+        base9.to_excel(self.path + self.path_powerbi + "/Output" + "/cluster.xlsx")
 
         return [
             base1,
@@ -2805,5 +2817,4 @@ class Clusterizacao:
             base8,
             base9,
             self.hp_rf_cluster,
-            self.historico,
         ]
